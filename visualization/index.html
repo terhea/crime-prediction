@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>NYC Crime Prediction</title>
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="bootstrap/3.3.7/css/bootstrap.min.css">
+<!-- Optional theme -->
+<link rel="stylesheet" href="bootstrap/3.3.7/css/bootstrap-theme.min.css">
+<!-- Latest compiled and minified JavaScript -->
+<script src="bootstrap/3.3.7/js/bootstrap.min.js"></script>
+<!-- AngularJS v1.5.8 -->
+<script src="js/angular.min.js"></script>	
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body ng-app="nycApp" ng-controller="nycContr">
+	<div id="floatingsideleft-panel" style="padding-top:10px">
+		
+	<div class="row"> 
+		<div class="col-md-4" style="background-color:white">
+			<img src="logo_unifr.png" width="100px">
+		</div>
+		<div class="col-md-8" style="background-color:white">
+			<img src="Xi_logo.svg" width="160px" style="background-color:white">
+		</div>
+	</div>
+	
+	<div class="row" style="padding-top:20px">
+		
+		<div class="col-md-12">
+			<div class="label label-default">Map</div>
+			<div class="panel panel-default">
+				<div class="panel-body">
+					<p>
+						<button type="button" class="btn btn-default btn-xs btn-block" ng-class="{'btn-success': gradient=='hist'}" ng-click="changeGradient('hist')">Historical</button>
+						<button type="button" class="btn btn-default btn-xs btn-block" ng-class="{'btn-primary': gradient=='pred'}" ng-click="changeGradient('pred')">Prediction</button>
+					</p>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	
+		<div class="row">
+			<div class="col-md-12">
+				<div class="label label-default">Offense Type</div>
+				<div class="panel panel-default">
+					<div class="panel-body ng-cloak">
+						<p>
+							<button type="button" class="btn btn-default btn-xs btn-block" ng-class="{'btn-success': gradient=='hist' && offense==x, 'btn-primary':gradient=='pred' && offense==x}" ng-repeat="x in offenseTypes" ng-click="changeOffense(x)">{{x}}</button>
+						</p><!-- /input-group -->
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="row">
+			<div class="col-md-12">
+				<div class="label label-default">Radius</div><span class="badge ng-cloak">{{radius}}</span>
+				<div class="panel panel-default">
+					<div class="panel-body">
+						<input id="slider1" ng-model="radius" type="range" ng-change="changeRadius()" min="0" max="30" step="1" />
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="row">
+			<div class="col-md-12">
+				<div class="label label-default">Opacity</div><span class="badge ng-cloak">{{opacity * 100}}%</span>
+				<div class="panel panel-default">
+					<div class="panel-body">
+						<input id="sliderOpacity" type="range" ng-change="changeOpacity()" ng-model="opacity" min="0" max="1" step="0.1" />
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	
+    <div id="floatingleft-panel">
+		<div class="row">
+		    <div class="label label-default">Month Selector</div>
+			<div class="btn-group ng-cloak" role="group">
+			  <a href="#" class="btn btn-sm" ng-class="{'btn-primary' : gradient=='pred', 'btn-success' : gradient=='hist'}">2015</a>
+			  <a href="#" class="btn btn-default btn-sm" ng-class="{'btn-primary': month==x && gradient=='pred', 'btn-success': month==x && gradient=='hist'}" ng-repeat="x in months" ng-click="changeMonth(x)">{{x}}</a>
+			</div><!-- /input-group -->
+		</div><!-- /.row -->
+	</div>
+	<div id="map"></div>
+		
+	<script>
+	var map, heatmap;
+	
+	var app = angular.module('nycApp', []);
+	</script>
+	<script src="js/offensedata_historical.js"></script>
+	<script src="js/offensedata_prediction.js"></script>
+	<script>
+	app.controller('nycContr', function($scope, $filter, service_datahistorical, service_dataprediction) {
+	    $scope.months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+	    $scope.offenseTypes = ["BURGLARY","FELONY ASSAULT","GRAND LARCENY","GRAND LARCENY OF MOTOR VEHICLE","MURDER & NON-NEGL. MANSLAUGHTE","RAPE","ROBBERY"];
+		$scope.month = "";
+		$scope.offense = "";
+		$scope.gradient = "hist";
+		$scope.radius = 10;
+		$scope.opacity = 0.5;
+		
+		angular.element(document).ready(function () {
+			$scope.month = $scope.months[8];
+			$scope.offense = $scope.offenseTypes[0];
+			$scope.changep();
+			$scope.$apply();
+		});
+		
+		$scope.locations_hist = service_datahistorical.getData();
+		$scope.locations_pred = service_dataprediction.getData();
+
+	$scope.changeOffense = function(x) {
+	  $scope.offense = x;
+	  $scope.changep();
+	}
+	
+	$scope.changeMonth = function(x) {
+	  $scope.month = x;
+	  $scope.changep();
+	}
+	$scope.changep = function() {
+	  var arrpoints = [];
+	  monthindex = $scope.months.indexOf($scope.month);
+	  offenseindex = $scope.offenseTypes.indexOf($scope.offense);
+	  alert(monthindex+' '+offenseindex);
+	  angular.forEach($filter('filter')($scope.gradient=='hist' ? $scope.locations_hist : $scope.locations_pred, {Month: $scope.month, Offense: $scope.offense}), function(item) {
+		arrpoints.push({location: new google.maps.LatLng(item.Lon, item.Lat), weight: item.weight});
+	  })
+	  heatmap.setData(arrpoints);
+	}
+	
+	$scope.changeRadius = function() {
+		heatmap.set('radius', $scope.radius);
+	}
+	
+	$scope.changeOpacity = function() {
+		heatmap.set('opacity', $scope.opacity);
+	}
+	
+	//mapval hist or pred
+	$scope.changeGradient = function(mapval) {
+		if ($scope.gradient == mapval) return;
+		
+	  var gradient = [
+		'rgba(0, 255, 255, 0)',
+		'rgba(0, 255, 255, 1)',
+		'rgba(0, 191, 255, 1)',
+		'rgba(0, 127, 255, 1)',
+		'rgba(0, 63, 255, 1)',
+		'rgba(0, 0, 255, 1)',
+		'rgba(0, 0, 223, 1)',
+		'rgba(0, 0, 191, 1)',
+		'rgba(0, 0, 159, 1)',
+		'rgba(0, 0, 127, 1)',
+		'rgba(63, 0, 91, 1)',
+		'rgba(127, 0, 63, 1)',
+		'rgba(191, 0, 31, 1)',
+		'rgba(255, 0, 0, 1)'
+	  ]
+  
+	  heatmap.set('gradient', mapval=='hist' ? null : gradient);
+	  $scope.gradient = mapval;
+	  $scope.changep();
+	}
+  });
+
+		
+	function initMap() {
+	  map = new google.maps.Map(document.getElementById('map'), {
+		zoom: 11,
+		center: {lat: 40.706, lng: -73.977},
+		mapTypeId: google.maps.MapTypeId.TERRAIN
+	  });
+
+	  heatmap = new google.maps.visualization.HeatmapLayer({
+		data: [],
+		map: map
+	  });
+	}
+
+    </script>
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBH-K0UU5xs3g27v-kI7TJX6BL1G18zxYs&signed_in=true&libraries=visualization&callback=initMap">
+    </script>
+  </body>
+</html>                                                                   
